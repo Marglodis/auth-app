@@ -22,6 +22,14 @@ export class AuthService {
 
   constructor() { }
 
+  private setAuthStatus( user: User, token: string ): boolean {
+
+    this._currentUser.set(user);
+    this._authStatus.set(AuthStatus.authenticated);
+    localStorage.setItem('token', token);
+
+    return true;
+  }
   login(email: string, password: string):Observable<boolean>{
 
     const url = `${this.baseUrl}/auth/login`;
@@ -29,17 +37,10 @@ export class AuthService {
 
     return this.http.post<LoginResponse>(url, body)
       .pipe(
-        tap(({user, token}) => {
-          this._currentUser.set(user);
-          this._authStatus.set(AuthStatus.authenticated);
-          localStorage.setItem('token', token);
-          console.log({user, token});
-        }),
-        map(() => true),
-        catchError( err => {
-          return throwError(() => err.error.message);
-        } )       
-      );
+        map(({user, token}) => this.setAuthStatus(user, token)),
+        catchError(err => throwError(() => err.error?.message))
+      );    
+       
   } 
 
   checkAuthStatus(): Observable<boolean> {
@@ -53,18 +54,13 @@ export class AuthService {
 
     return this.http.get<CheckTokenResponse>(url, {headers})
     .pipe(
-      map(({user, token}) => {
-        this._currentUser.set(user);
-        this._authStatus.set(AuthStatus.authenticated);
-        localStorage.setItem('token', token);
-        return true;
-      }),
+      map(({user, token}) => this.setAuthStatus(user, token)),
       catchError(() => {
-        //this._currentUser.set(null);
         this._authStatus.set(AuthStatus.notAuthenticated);
         return of(false);
-      })
-    )
+
+      }),
+    );
     
   }
 }
